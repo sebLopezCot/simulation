@@ -72,6 +72,10 @@ class MapGenerator(object):
 
         return edges
 
+    def _acceptable_curvature(self, edges, start_cell, next_cell):
+        # TODO: Implement reverse direction graph
+        raise NotImplementedError
+
     def random_edge_walk_(self, edges, non_visited_cells, start_cell):
         cur_x, cur_y = start_cell
 
