@@ -214,6 +214,9 @@ class MapGenerator(object):
             nd_xs = nd_arr[:, 0]
             nd_ys = nd_arr[:, 1]
 
+            nd_xs = [grid_x_ticks[int(x_i)] for x_i in nd_xs]
+            nd_ys = [grid_y_ticks[int(y_i)] for y_i in nd_ys]
+
             x, y, yaw, k, travel = calc_2d_spline_interpolation(nd_xs, nd_ys, num=200)
             plt.plot(x, y)
 
