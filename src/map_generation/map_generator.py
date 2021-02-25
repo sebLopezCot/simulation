@@ -3,20 +3,45 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 
+from spline import calc_2d_spline_interpolation 
+
 class Graph(object):
 
     def __init__(self):
         self.forward_edges = {}
         self.backward_edges = {}
+        self.paths = {}
+        self.latest_path_key = None
+    
+    def init_path(self, start_cell):
+        assert start_cell not in self.paths, "Start cell is already the first node in another path"
+        self.paths[start_cell] = []
+        self.latest_path_key = start_cell
 
     def insert(self, start_node, end_node):
         if start_node not in self.forward_edges:
-            self.forward_edges[start_node] = []
-        self.forward_edges[start_node].append(end_node)
+            self.forward_edges[start_node] = set()
+        self.forward_edges[start_node].add(end_node)
 
         if end_node not in self.backward_edges:
-            self.backward_edges[end_node] = []
-        self.backward_edges[end_node].append(start_node)
+            self.backward_edges[end_node] = set()
+        self.backward_edges[end_node].add(start_node)
+
+        assert self.latest_path_key is not None, "No path has been initialized yet!"
+        self.paths[self.latest_path_key].append(end_node)
+
+    def delete_path(self, start_cell):
+        assert start_cell in self.paths, "No path with that start cell"
+        
+        if self.latest_path_key == start_cell:
+            self.latest_path_key = None
+
+        parent = start_cell
+        for cell in self.paths[start_cell]:
+            self.forward_edges[parent].remove(cell)
+            self.backward_edges[cell].remove(parent)
+            parent = cell
+        del self.paths[start_cell]
 
 
 class MapGenerator(object):
@@ -78,9 +103,14 @@ class MapGenerator(object):
             if not start_cell in non_visited_cells:
                 continue
 
+            edges.init_path(start_cell)
+
             self.random_edge_walk_(edges, non_visited_cells, start_cell)
             
         assert len(non_visited_cells) == 0, "Not all cells were visited!"
+
+        # Remove short paths
+        self.remove_short_paths_(edges)
 
         return edges
 
@@ -92,7 +122,7 @@ class MapGenerator(object):
         # Case 2: start node is a continuation node (i.e., has parent)
         parent_cells = edges.backward_edges[start_cell]
         assert len(parent_cells) == 1, "Parent cell list has more than 1 element"
-        parent_cell = parent_cells[0]
+        parent_cell = list(parent_cells)[0]
         subpath1 = np.array(start_cell) - np.array(parent_cell)
         subpath1 = subpath1 / np.linalg.norm(subpath1)
 
@@ -139,29 +169,54 @@ class MapGenerator(object):
         # Recurse
         self.random_edge_walk_(edges, non_visited_cells, neighbor_cell)
 
+    def remove_short_paths_(self, edges, min_path_length=15):
+        paths_to_remove = [k for k, path in edges.paths.items() if len(path) < min_path_length]
+        for path_key in paths_to_remove:
+            edges.delete_path(path_key)
+
+    def connect_leafs_to_shortest_path_start_nodes_(self, edges):
+        # Use bfs to find shortest path end nodes of path i to closest
+        # start nodes of path j for all j != i
+        raise NotImplementedError()
+
     def plot(self):
         anchor_xs, anchor_ys = self.grid_anchors
         connection_xs, connection_ys = self.connection_points
-        plt.scatter(anchor_xs, anchor_ys, marker='.', c='b')
-        plt.scatter(connection_xs, connection_ys, marker='.', c='r')
+
+        # Plot grid
+        #plt.scatter(anchor_xs, anchor_ys, marker='.', c='b')
+        #plt.scatter(connection_xs, connection_ys, marker='.', c='r')
 
         random_paths = self.get_random_paths()
         grid_x_ticks, grid_y_ticks = self.grid_ticks
-        print(random_paths.forward_edges)
-        for src_cell, dst_cells in random_paths.forward_edges.items():
-            src_x_idx, src_y_idx = src_cell
-            src_x, src_y = grid_x_ticks[src_x_idx], grid_y_ticks[src_y_idx]
-            
-            for dst_cell in dst_cells:
-                # Plot
-                dst_x_idx, dst_y_idx = dst_cell
-                dst_x, dst_y = grid_x_ticks[dst_x_idx], grid_y_ticks[dst_y_idx]
-                
-                print("(", src_x, ",", src_y, ") -> (", dst_x, ",", dst_y, ")")
+        
+        # Plot edge graph 
+        #for src_cell, dst_cells in random_paths.forward_edges.items():
+        #    src_x_idx, src_y_idx = src_cell
+        #    src_x, src_y = grid_x_ticks[src_x_idx], grid_y_ticks[src_y_idx]
+        #    
+        #    for dst_cell in dst_cells:
+        #        # Plot
+        #        dst_x_idx, dst_y_idx = dst_cell
+        #        dst_x, dst_y = grid_x_ticks[dst_x_idx], grid_y_ticks[dst_y_idx]
+        #        
+        #        print("(", src_x, ",", src_y, ") -> (", dst_x, ",", dst_y, ")")
 
-                dx = dst_x - src_x
-                dy = dst_y - src_y
-                plt.arrow(src_x, src_y, dx, dy)
+        #        dx = dst_x - src_x
+        #        dy = dst_y - src_y
+        #        plt.arrow(src_x, src_y, dx, dy)
+
+        # Plot path splines
+        for start_cell, path in random_paths.paths.items():
+            nd_arr = np.zeros((len(path) + 1, 2))
+            nd_arr[0, :] = np.array(start_cell)
+            nd_arr[1:, :] = np.array(path)
+            nd_xs = nd_arr[:, 0]
+            nd_ys = nd_arr[:, 1]
+
+            x, y, yaw, k, travel = calc_2d_spline_interpolation(nd_xs, nd_ys, num=200)
+            plt.plot(x, y)
+
 
         plt.show()
 
