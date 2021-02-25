@@ -3,6 +3,22 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 
+class Graph(object):
+
+    def __init__(self):
+        self.forward_edges = {}
+        self.backward_edges = {}
+
+    def insert(self, start_node, end_node):
+        if start_node not in self.forward_edges:
+            self.forward_edges[start_node] = []
+        self.forward_edges[start_node].append(end_node)
+
+        if end_node not in self.backward_edges:
+            self.backward_edges[end_node] = []
+        self.backward_edges[end_node].append(start_node)
+
+
 class MapGenerator(object):
 
     def __init__(self, x_min, x_max, y_min, y_max, num_x_cells, num_y_cells, num_connectors, connector_radius):
@@ -34,7 +50,6 @@ class MapGenerator(object):
     def connection_points(self):
         anchor_xs, anchor_ys = self.grid_anchors
         theta_incr = np.linspace(0, 2*np.pi, self.num_connectors + 1)[:-1]
-        print(theta_incr * 180./np.pi)
         # N x 2
         anchor_r = np.vstack([np.array(anchor_xs), np.array(anchor_ys)]).T
         # T x N X 2
@@ -56,7 +71,7 @@ class MapGenerator(object):
         visit_order = list(non_visited_cells)
         random.shuffle(visit_order)
 
-        edges = {}
+        edges = Graph()
 
         for start_cell in visit_order:
             # skip cells which have already been visited
@@ -65,18 +80,40 @@ class MapGenerator(object):
 
             self.random_edge_walk_(edges, non_visited_cells, start_cell)
             
-            if start_cell in non_visited_cells:
-                non_visited_cells.remove(start_cell)
-
         assert len(non_visited_cells) == 0, "Not all cells were visited!"
 
         return edges
 
     def _acceptable_curvature(self, edges, start_cell, next_cell):
-        # TODO: Implement reverse direction graph
-        raise NotImplementedError
+        # Case 1: start node is a start node (i.e., no parent)
+        if start_cell not in edges.backward_edges:
+            return True
+
+        # Case 2: start node is a continuation node (i.e., has parent)
+        parent_cells = edges.backward_edges[start_cell]
+        assert len(parent_cells) == 1, "Parent cell list has more than 1 element"
+        parent_cell = parent_cells[0]
+        subpath1 = np.array(start_cell) - np.array(parent_cell)
+        subpath1 = subpath1 / np.linalg.norm(subpath1)
+
+        subpath2 = np.array(next_cell) - np.array(start_cell)
+        subpath2 = subpath2 / np.linalg.norm(subpath2)
+
+        cos_theta = np.dot(subpath1, subpath2)
+        # cos theta will be positive when some alignment and same direction
+        # cos theta will be zero when orthogonal
+        # cos theta will be negative when some anti-alignment in opposite directions
+        EPS = 1e-3 
+        MAX_COS_THETA = 1.0 + EPS
+        MIN_COS_THETA = 0.1 - EPS
+
+        return MIN_COS_THETA <= cos_theta <= MAX_COS_THETA
 
     def random_edge_walk_(self, edges, non_visited_cells, start_cell):
+        # Remove from non visited set
+        if start_cell in non_visited_cells:
+            non_visited_cells.remove(start_cell)
+
         cur_x, cur_y = start_cell
 
         x_offsets = [-1, 0, 1]
@@ -85,7 +122,8 @@ class MapGenerator(object):
                 if 0 <= cur_x + dx < self.num_x_cells \
                 and 0 <= cur_y + dy < self.num_y_cells\
                 and not (dx == 0 and dy == 0)\
-                and (cur_x + dx, cur_y + dy) in non_visited_cells]
+                and (cur_x + dx, cur_y + dy) in non_visited_cells\
+                and self._acceptable_curvature(edges, start_cell, (cur_x + dx, cur_y + dy))]
 
         # Base case
         if not nbors:
@@ -96,13 +134,7 @@ class MapGenerator(object):
         neighbor_cell = nbors[neighbor_cell_idx]
 
         # Insert edge into graph
-        if start_cell not in edges:
-            edges[start_cell] = []
-
-        edges[start_cell].append(neighbor_cell)
-
-        # Remove from non visited set
-        non_visited_cells.remove(start_cell)
+        edges.insert(start_cell, neighbor_cell)
 
         # Recurse
         self.random_edge_walk_(edges, non_visited_cells, neighbor_cell)
@@ -115,8 +147,8 @@ class MapGenerator(object):
 
         random_paths = self.get_random_paths()
         grid_x_ticks, grid_y_ticks = self.grid_ticks
-        print(random_paths)
-        for src_cell, dst_cells in random_paths.items():
+        print(random_paths.forward_edges)
+        for src_cell, dst_cells in random_paths.forward_edges.items():
             src_x_idx, src_y_idx = src_cell
             src_x, src_y = grid_x_ticks[src_x_idx], grid_y_ticks[src_y_idx]
             
