@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from collections import namedtuple 
 
-from spline import calc_2d_spline_interpolation 
+from mapping.spline import calc_2d_spline_interpolation 
 
 PathSpline = namedtuple('PathSpline', ['start_cell', 'x', 'y']) 
 

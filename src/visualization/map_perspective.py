@@ -3,6 +3,8 @@ import logging
 from threading import Thread
 from queue import Queue
 
+import numpy as np
+
 import pygame
 from pygame.locals import *
 
@@ -13,8 +15,35 @@ from OpenGL.GLU import *
 import math
 
 WINDOW_TITLE = "Map Perspective Visualizer"
-WINDOW_WIDTH = 1024 
-WINDOW_HEIGHT = 720
+WINDOW_WIDTH = 1920 
+WINDOW_HEIGHT = 1080
+
+PATH_COLORS = [
+    "#FFF0F5",
+    "#FFD700",
+    "#EE82EE",
+    "#1E90FF",
+    "#EEE8AA",
+    "#FFA500",
+    "#BDB76B",
+    "#FF00FF",
+    "#FF0000",
+    "#DA70D6",
+    "#0000FF",
+    "#9966CC",
+    "#F4A460",
+    "#FF69B4",
+    "#9ACD32",
+    "#7FFF00",
+]
+
+def random_color():
+    color = np.random.choice(PATH_COLORS)
+    color_hex = color[1:]
+    r, g, b = color_hex[0:2], color_hex[2:4], color_hex[4:6]
+    r, g, b = int(r, 16), int(g, 16), int(b, 16)
+    r, g, b = float(r) / 255.0, float(g) / 255.0, float(b) / 255.0
+    return r, g, b
 
 class PathObjectManager(object):
 
@@ -80,6 +109,10 @@ class MapPerspective(object):
         self.mouseMove = [0, 0]
         pygame.mouse.set_pos(self.displayCenter)
         
+        # Get path splines
+        self.nearby_splines = self.map_manager.get_nearby_splines(location=None)
+        self.spline_colors = [random_color() for _ in self.nearby_splines]
+
         # init mouse movement and center mouse on screen
         self.up_down_angle = 0.0
         self.paused = False
@@ -93,14 +126,15 @@ class MapPerspective(object):
         # apply movement of camera
         self.movement_vec = (0.0, 0.0, 0.0)
 
+        vel = 1.0
         if self.keypress[pygame.K_w]:
-            self.movement_vec = (0.0, 0.0, 0.1)
+            self.movement_vec = (0.0, 0.0, vel)
         if self.keypress[pygame.K_s]:
-            self.movement_vec = (0.0, 0.0, -0.1)
+            self.movement_vec = (0.0, 0.0, -vel)
         if self.keypress[pygame.K_d]:
-            self.movement_vec = (-0.1, 0.0, 0.0)
+            self.movement_vec = (-vel, 0.0, 0.0)
         if self.keypress[pygame.K_a]:
-            self.movement_vec = (0.1, 0.0, 0.0)
+            self.movement_vec = (vel, 0.0, 0.0)
 
     def render(self):
         # init model view matrix
@@ -134,21 +168,44 @@ class MapPerspective(object):
         
         glPushMatrix()
         
+        # Render the floor
         glColor4f(0.5, 0.5, 0.5, 1)
         glBegin(GL_QUADS)
-        glVertex3f(-10, -10, -2)
-        glVertex3f(10, -10, -2)
-        glVertex3f(10, 10, -2)
-        glVertex3f(-10, 10, -2)
+        glVertex3f(-100, -100, -2)
+        glVertex3f(100, -100, -2)
+        glVertex3f(100, 100, -2)
+        glVertex3f(-100, 100, -2)
         glEnd()
         
-        glTranslatef(-1.5, 0, 0)
-        glColor4f(0.5, 0.2, 0.2, 1)
-        gluSphere(self.sphere, 1.0, 32, 16) 
+        glPopMatrix()
         
-        glTranslatef(3, 0, 0)
-        glColor4f(0.2, 0.2, 0.5, 1)
-        gluSphere(self.sphere, 1.0, 32, 16) 
+        glPushMatrix()
+
+        # Rander path splines
+        glTranslatef(0, 0, -1.75)
+        for spline_idx, spline in enumerate(self.nearby_splines):
+            r, g, b = self.spline_colors[spline_idx] 
+            glColor4f(r, g, b, 1)
+            for p_idx in range(len(spline.x)):
+                x = spline.x[p_idx] * 0.125
+                y = spline.y[p_idx] * 0.125
+
+                glPushMatrix()
+
+                # Render spheres
+                glTranslatef(x, y, 0)
+                gluSphere(self.sphere, 0.1, 32, 16) 
+
+                glPopMatrix()
+
+        ## Render spheres
+        #glTranslatef(-1.5, 0, 0)
+        #glColor4f(0.5, 0.2, 0.2, 1)
+        #gluSphere(self.sphere, 0.1, 32, 16) 
+        #
+        #glTranslatef(3, 0, 0)
+        #glColor4f(0.2, 0.2, 0.5, 1)
+        #gluSphere(self.sphere, 0.1, 32, 16) 
         
         glPopMatrix()
         
