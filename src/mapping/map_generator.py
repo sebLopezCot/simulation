@@ -3,7 +3,11 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 
+from collections import namedtuple 
+
 from spline import calc_2d_spline_interpolation 
+
+PathSpline = namedtuple('PathSpline', ['start_cell', 'x', 'y']) 
 
 class Graph(object):
 
@@ -178,6 +182,29 @@ class MapGenerator(object):
         # Use bfs to find shortest path end nodes of path i to closest
         # start nodes of path j for all j != i
         raise NotImplementedError()
+    
+    def get_random_path_splines(self):
+        random_paths = self.get_random_paths()
+        grid_x_ticks, grid_y_ticks = self.grid_ticks
+
+        output_splines = []
+
+        # Plot path splines
+        for start_cell, path in random_paths.paths.items():
+            nd_arr = np.zeros((len(path) + 1, 2))
+            nd_arr[0, :] = np.array(start_cell)
+            nd_arr[1:, :] = np.array(path)
+            nd_xs = nd_arr[:, 0]
+            nd_ys = nd_arr[:, 1]
+
+            nd_xs = [grid_x_ticks[int(x_i)] for x_i in nd_xs]
+            nd_ys = [grid_y_ticks[int(y_i)] for y_i in nd_ys]
+
+            x, y, yaw, k, travel = calc_2d_spline_interpolation(nd_xs, nd_ys, num=200)
+
+            output_splines.append(PathSpline(start_cell=start_cell, x=x, y=y))
+
+        return output_splines
 
     def plot(self):
         anchor_xs, anchor_ys = self.grid_anchors
