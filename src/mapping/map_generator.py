@@ -50,13 +50,14 @@ class Graph(object):
 
 class MapGenerator(object):
 
-    def __init__(self, x_min, x_max, y_min, y_max, num_x_cells, num_y_cells, num_connectors, connector_radius):
+    def __init__(self, x_min, x_max, y_min, y_max, num_x_cells, num_y_cells, num_connectors, connector_radius, spline_density):
         self.x_min = x_min
         self.x_max = x_max
         self.y_min = y_min
         self.y_max = y_max
         self.num_x_cells = num_x_cells
         self.num_y_cells = num_y_cells
+        self.spline_density = spline_density
 
         assert num_connectors % 2 == 0, "Connector number must be even"
         self.num_connectors = num_connectors
@@ -200,7 +201,7 @@ class MapGenerator(object):
             nd_xs = [grid_x_ticks[int(x_i)] for x_i in nd_xs]
             nd_ys = [grid_y_ticks[int(y_i)] for y_i in nd_ys]
 
-            x, y, yaw, k, travel = calc_2d_spline_interpolation(nd_xs, nd_ys, num=200)
+            x, y, yaw, k, travel = calc_2d_spline_interpolation(nd_xs, nd_ys, num=self.spline_density)
 
             output_splines.append(PathSpline(start_cell=start_cell, x=x, y=y))
 
@@ -255,5 +256,6 @@ if __name__ == "__main__":
     N_CELLS = 20
     N_CONNECTORS = 8
     CONNECTOR_RADIUS = 1.0
-    MapGenerator(-MAX_EXTENT, MAX_EXTENT, -MAX_EXTENT, MAX_EXTENT, N_CELLS, N_CELLS, N_CONNECTORS, CONNECTOR_RADIUS).plot()
+    SPLINE_DENSITY = 200
+    MapGenerator(-MAX_EXTENT, MAX_EXTENT, -MAX_EXTENT, MAX_EXTENT, N_CELLS, N_CELLS, N_CONNECTORS, CONNECTOR_RADIUS, SPLINE_DENSITY).plot()
 

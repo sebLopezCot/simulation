@@ -12,6 +12,7 @@ if __name__ == '__main__':
     N_CELLS = 20
     N_CONNECTORS = 8
     CONNECTOR_RADIUS = 1.0
+    SPLINE_DENSITY = 200
     map_gen = MapGenerator(-MAX_EXTENT, 
                             MAX_EXTENT, 
                             -MAX_EXTENT, 
@@ -19,7 +20,8 @@ if __name__ == '__main__':
                             N_CELLS, 
                             N_CELLS, 
                             N_CONNECTORS, 
-                            CONNECTOR_RADIUS)
+                            CONNECTOR_RADIUS,
+                            SPLINE_DENSITY)
 
     path_splines = map_gen.get_random_path_splines()
     map_manager = MapManager(path_splines)

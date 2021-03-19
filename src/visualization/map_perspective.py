@@ -14,6 +14,8 @@ from OpenGL.GLU import *
 
 import math
 
+import time
+
 WINDOW_TITLE = "Map Perspective Visualizer"
 WINDOW_WIDTH = 1920 
 WINDOW_HEIGHT = 1080
@@ -126,7 +128,7 @@ class MapPerspective(object):
         # apply movement of camera
         self.movement_vec = (0.0, 0.0, 0.0)
 
-        vel = 1.0
+        vel = 0.3 
         if self.keypress[pygame.K_w]:
             self.movement_vec = (0.0, 0.0, vel)
         if self.keypress[pygame.K_s]:
@@ -169,12 +171,13 @@ class MapPerspective(object):
         glPushMatrix()
         
         # Render the floor
+        FLOOR_DIM = 1000
         glColor4f(0.5, 0.5, 0.5, 1)
         glBegin(GL_QUADS)
-        glVertex3f(-100, -100, -2)
-        glVertex3f(100, -100, -2)
-        glVertex3f(100, 100, -2)
-        glVertex3f(-100, 100, -2)
+        glVertex3f(-FLOOR_DIM, -FLOOR_DIM, -2)
+        glVertex3f(FLOOR_DIM, -FLOOR_DIM, -2)
+        glVertex3f(FLOOR_DIM, FLOOR_DIM, -2)
+        glVertex3f(-FLOOR_DIM, FLOOR_DIM, -2)
         glEnd()
         
         glPopMatrix()
@@ -187,8 +190,8 @@ class MapPerspective(object):
             r, g, b = self.spline_colors[spline_idx] 
             glColor4f(r, g, b, 1)
             for p_idx in range(len(spline.x)):
-                x = spline.x[p_idx] * 0.125
-                y = spline.y[p_idx] * 0.125
+                x = spline.x[p_idx] * 1.0
+                y = spline.y[p_idx] * 1.0
 
                 glPushMatrix()
 
@@ -235,6 +238,7 @@ class MapPerspective(object):
 
     def run(self):
         self.init()
+        self.last_time = time.time()
         
         while self.running:
             # Handle input events
@@ -243,6 +247,12 @@ class MapPerspective(object):
             if not self.paused:
                 self.update()
                 self.render()
+
+                dt = time.time() - self.last_time
+                fps = 1.0 / dt
+                print("FPS: {:.1f}".format(fps))
+                self.last_time = time.time()
+                
                 pygame.time.wait(10)
 
         pygame.quit()
